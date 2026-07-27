@@ -333,6 +333,30 @@ textarea:focus, .answer-field:focus-within { border-color: var(--purple); box-sh
 .delete-button:hover { border-color: var(--red); background: #fff0ed; }
 .delete-button:disabled { opacity: .5; cursor: wait; }
 
+.quiz-setup-shell {
+  max-width: 960px; margin: 0 auto; min-height: calc(100vh - 82px);
+  padding: 86px 32px 60px; text-align: center;
+}
+.quiz-setup-shell h2 {
+  font-size: clamp(42px, 6vw, 68px); line-height: 1.05; margin: 14px 0 18px;
+}
+.quiz-setup-shell h2 em { font-family: Georgia, serif; font-weight: 400; color: var(--purple); }
+.setup-description { max-width: 660px; margin: 0 auto; color: var(--muted); line-height: 1.7; font-size: 14px; }
+.setup-description strong { color: var(--ink); }
+.size-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; margin: 44px 0 26px; }
+.size-card {
+  min-height: 170px; padding: 22px 12px; border: 1px solid var(--line); border-radius: 19px;
+  background: var(--paper); cursor: pointer; display: flex; flex-direction: column;
+  align-items: center; justify-content: center; gap: 7px; transition: transform .18s, border-color .18s;
+}
+.size-card:hover { transform: translateY(-4px); border-color: var(--purple); }
+.size-card span { font: 700 42px var(--font-display); color: var(--purple); letter-spacing: -2px; }
+.size-card strong { font-size: 13px; }
+.size-card small { min-height: 28px; color: var(--muted); font-size: 9px; line-height: 1.4; }
+.size-card:last-child { background: var(--lime); }
+.size-card:last-child span { color: var(--ink); }
+.setup-back { margin-top: 8px; }
+
 @media (max-width: 700px) {
   .nav { height: 70px; padding: 0 20px; }
   .brand { font-size: 22px; }
@@ -356,6 +380,9 @@ textarea:focus, .answer-field:focus-within { border-color: var(--purple); box-sh
   .preview-list small { grid-column: 2; }
   .question-row { grid-template-columns: 36px 1fr; }
   .row-actions { grid-column: 1 / 3; justify-content: flex-end; }
+  .quiz-setup-shell { padding: 55px 18px; }
+  .size-grid { grid-template-columns: repeat(2, 1fr); }
+  .size-card:last-child { grid-column: 1 / 3; }
 }
 
 @media (prefers-reduced-motion: reduce) {

@@ -13,7 +13,8 @@ import {
 } from "@/lib/questions";
 import { ImportResult, parseQuestionFile } from "@/lib/import-questions";
 
-type Screen = "home" | "create" | "manage" | "quiz";
+type Screen = "home" | "create" | "manage" | "quiz-setup" | "quiz";
+type QuizSize = 50 | 100 | 200 | 300 | "all";
 type QuizQuestion = Question & { choices: { text: string; isCorrect: boolean }[] };
 
 const letters = ["A", "B", "C", "D"];
@@ -27,6 +28,7 @@ export default function Home() {
   const [questions, setQuestions] = useState<Question[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [quizSize, setQuizSize] = useState<QuizSize>("all");
 
   const refresh = useCallback(async () => {
     setLoading(true);
@@ -72,7 +74,7 @@ export default function Home() {
           loading={loading}
           onCreate={() => setScreen("create")}
           onManage={() => setScreen("manage")}
-          onQuiz={() => setScreen("quiz")}
+          onQuiz={() => setScreen("quiz-setup")}
         />
       )}
       {screen === "create" && (
@@ -91,8 +93,18 @@ export default function Home() {
           onChanged={refresh}
         />
       )}
+      {screen === "quiz-setup" && (
+        <QuizSetupScreen
+          count={questions.length}
+          onBack={() => setScreen("home")}
+          onStart={(size) => {
+            setQuizSize(size);
+            setScreen("quiz");
+          }}
+        />
+      )}
       {screen === "quiz" && (
-        <QuizScreen questions={questions} onExit={() => setScreen("home")} />
+        <QuizScreen questions={questions} size={quizSize} onExit={() => setScreen("home")} />
       )}
     </main>
   );
@@ -486,10 +498,90 @@ function ImportPanel({
   );
 }
 
-function QuizScreen({ questions, onExit }: { questions: Question[]; onExit: () => void }) {
+function QuizSetupScreen({
+  count,
+  onBack,
+  onStart,
+}: {
+  count: number;
+  onBack: () => void;
+  onStart: (size: QuizSize) => void;
+}) {
+  const sizes: QuizSize[] = [50, 100, 200, 300, "all"];
+  return (
+    <section className="quiz-setup-shell">
+      <span className="step-label">THIẾT LẬP BÀI QUIZ</span>
+      <h2>Bạn muốn làm <em>bao nhiêu câu?</em></h2>
+      <p className="setup-description">
+        Kho hiện có <strong>{count}</strong> câu. Hệ thống ưu tiên câu chưa xuất hiện
+        ở các lần làm trước và không lặp câu trong cùng một đề.
+      </p>
+      <div className="size-grid">
+        {sizes.map((size) => {
+          const requested = size === "all" ? count : size;
+          const actual = Math.min(requested, count);
+          return (
+            <button key={size} className="size-card" onClick={() => onStart(size)}>
+              <span>{size === "all" ? "∞" : size}</span>
+              <strong>{size === "all" ? "Toàn bộ" : `${size} câu`}</strong>
+              {size !== "all" && actual < size && <small>Dùng {actual} câu hiện có</small>}
+              {size === "all" && <small>Làm hết kho câu hỏi</small>}
+            </button>
+          );
+        })}
+      </div>
+      <button className="secondary-button setup-back" onClick={onBack}>← Quay lại</button>
+    </section>
+  );
+}
+
+function selectFairQuestions(questions: Question[], size: QuizSize): Question[] {
+  const target = size === "all" ? questions.length : Math.min(size, questions.length);
+  if (size === "all") return shuffled(questions);
+
+  const storageKey = "quizly-question-rotation-v1";
+  const questionById = new Map(questions.map((question) => [question.id, question]));
+  let queue: string[] = [];
+  try {
+    const stored = JSON.parse(localStorage.getItem(storageKey) ?? "[]");
+    if (Array.isArray(stored)) {
+      queue = stored.filter((id): id is string => typeof id === "string" && questionById.has(id));
+    }
+  } catch {
+    queue = [];
+  }
+
+  const queued = new Set(queue);
+  queue.push(...shuffled(questions.filter((question) => !queued.has(question.id))).map((item) => item.id));
+  if (queue.length < target) {
+    const stillQueued = new Set(queue);
+    queue.push(
+      ...shuffled(questions.filter((question) => !stillQueued.has(question.id))).map((item) => item.id)
+    );
+  }
+
+  const selectedIds = queue.slice(0, target);
+  try {
+    localStorage.setItem(storageKey, JSON.stringify(queue.slice(target)));
+  } catch {
+    // Quiz vẫn hoạt động nếu trình duyệt chặn localStorage.
+  }
+  return selectedIds.map((id) => questionById.get(id)).filter((item): item is Question => Boolean(item));
+}
+
+function QuizScreen({
+  questions,
+  size,
+  onExit,
+}: {
+  questions: Question[];
+  size: QuizSize;
+  onExit: () => void;
+}) {
+  const selectedQuestions = useMemo(() => selectFairQuestions(questions, size), [questions, size]);
   const quiz = useMemo<QuizQuestion[]>(
     () =>
-      shuffled(questions).map((question) => ({
+      selectedQuestions.map((question) => ({
         ...question,
         choices: shuffled(
           question.answers.map((text, index) => ({
@@ -498,7 +590,7 @@ function QuizScreen({ questions, onExit }: { questions: Question[]; onExit: () =
           }))
         ),
       })),
-    [questions]
+    [selectedQuestions]
   );
   const [index, setIndex] = useState(0);
   const [selected, setSelected] = useState<number | null>(null);
