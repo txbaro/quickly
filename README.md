@@ -16,6 +16,10 @@ npm run dev
 
 Mở `http://localhost:3000`.
 
+Nếu project Supabase đã được tạo từ phiên bản cũ, hãy chạy lại toàn bộ
+`supabase/schema.sql` để bổ sung policy cho chức năng sửa và xóa câu hỏi. Script có
+thể chạy lại an toàn vì dùng `if not exists` và thay thế các policy theo tên.
+
 ## Deploy lên Vercel
 
 1. Đẩy repository lên GitHub/GitLab/Bitbucket.

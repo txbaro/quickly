@@ -50,6 +50,28 @@ export async function addQuestion(input: {
   if (!response.ok) throw new Error(await parseError(response));
 }
 
+export async function updateQuestion(
+  id: string,
+  input: { question: string; answers: string[]; correct_answer: number }
+): Promise<void> {
+  if (!isSupabaseConfigured) throw new Error("Supabase chưa được cấu hình.");
+  const response = await fetch(`${url}/rest/v1/questions?id=eq.${encodeURIComponent(id)}`, {
+    method: "PATCH",
+    headers: { ...headers(), Prefer: "return=minimal" },
+    body: JSON.stringify(input),
+  });
+  if (!response.ok) throw new Error(await parseError(response));
+}
+
+export async function deleteQuestion(id: string): Promise<void> {
+  if (!isSupabaseConfigured) throw new Error("Supabase chưa được cấu hình.");
+  const response = await fetch(`${url}/rest/v1/questions?id=eq.${encodeURIComponent(id)}`, {
+    method: "DELETE",
+    headers: { ...headers(), Prefer: "return=minimal" },
+  });
+  if (!response.ok) throw new Error(await parseError(response));
+}
+
 export function shuffled<T>(items: T[]): T[] {
   const copy = [...items];
   for (let i = copy.length - 1; i > 0; i--) {

@@ -3,13 +3,15 @@
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import {
   addQuestion,
+  deleteQuestion,
   getQuestions,
   isSupabaseConfigured,
   Question,
   shuffled,
+  updateQuestion,
 } from "@/lib/questions";
 
-type Screen = "home" | "create" | "quiz";
+type Screen = "home" | "create" | "manage" | "quiz";
 type QuizQuestion = Question & { choices: { text: string; isCorrect: boolean }[] };
 
 const letters = ["A", "B", "C", "D"];
@@ -67,6 +69,7 @@ export default function Home() {
           count={questions.length}
           loading={loading}
           onCreate={() => setScreen("create")}
+          onManage={() => setScreen("manage")}
           onQuiz={() => setScreen("quiz")}
         />
       )}
@@ -77,6 +80,13 @@ export default function Home() {
             await refresh();
             setScreen("home");
           }}
+        />
+      )}
+      {screen === "manage" && (
+        <ManageScreen
+          questions={questions}
+          onBack={() => setScreen("home")}
+          onChanged={refresh}
         />
       )}
       {screen === "quiz" && (
@@ -99,11 +109,13 @@ function HomeScreen({
   count,
   loading,
   onCreate,
+  onManage,
   onQuiz,
 }: {
   count: number;
   loading: boolean;
   onCreate: () => void;
+  onManage: () => void;
   onQuiz: () => void;
 }) {
   return (
@@ -137,6 +149,17 @@ function HomeScreen({
           </span>
           <span className="card-arrow">→</span>
         </button>
+        <button
+          className="action-card manage-card"
+          onClick={onManage}
+          disabled={loading || count === 0}
+        >
+          <span className="card-icon manage">✎</span>
+          <span className="card-kicker">CHỈNH SỬA KHO</span>
+          <strong>Quản lý câu hỏi</strong>
+          <span className="card-description">Sửa nội dung, đổi đáp án đúng hoặc xóa câu bị sai.</span>
+          <span className="card-arrow">→</span>
+        </button>
       </div>
 
       <div className="tip"><span>☼</span> Mỗi câu hỏi bạn tạo là một bước tiến nhỏ.</div>
@@ -144,10 +167,18 @@ function HomeScreen({
   );
 }
 
-function CreateScreen({ onCancel, onCreated }: { onCancel: () => void; onCreated: () => Promise<void> }) {
-  const [question, setQuestion] = useState("");
-  const [answers, setAnswers] = useState(["", "", "", ""]);
-  const [correct, setCorrect] = useState(0);
+function CreateScreen({
+  onCancel,
+  onCreated,
+  existing,
+}: {
+  onCancel: () => void;
+  onCreated: () => Promise<void>;
+  existing?: Question;
+}) {
+  const [question, setQuestion] = useState(existing?.question ?? "");
+  const [answers, setAnswers] = useState(existing?.answers ?? ["", "", "", ""]);
+  const [correct, setCorrect] = useState(existing?.correct_answer ?? 0);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
 
@@ -166,7 +197,9 @@ function CreateScreen({ onCancel, onCreated }: { onCancel: () => void; onCreated
     }
     setSaving(true);
     try {
-      await addQuestion({ question: cleanQuestion, answers: cleanAnswers, correct_answer: correct });
+      const input = { question: cleanQuestion, answers: cleanAnswers, correct_answer: correct };
+      if (existing) await updateQuestion(existing.id, input);
+      else await addQuestion(input);
       await onCreated();
     } catch (err) {
       setMessage(err instanceof Error ? err.message : "Không thể lưu câu hỏi.");
@@ -177,8 +210,12 @@ function CreateScreen({ onCancel, onCreated }: { onCancel: () => void; onCreated
   return (
     <section className="page-shell form-shell">
       <div className="section-heading">
-        <span className="step-label">CÂU HỎI MỚI</span>
-        <h2>Gieo một hạt giống <em>kiến thức.</em></h2>
+        <span className="step-label">{existing ? "CHỈNH SỬA CÂU HỎI" : "CÂU HỎI MỚI"}</span>
+        <h2>
+          {existing
+            ? <>Sửa lại cho thật <em>chính xác.</em></>
+            : <>Gieo một hạt giống <em>kiến thức.</em></>}
+        </h2>
         <p>Điền nội dung và chọn đáp án đúng bằng nút tròn bên trái.</p>
       </div>
       <form className="question-form" onSubmit={submit}>
@@ -225,10 +262,88 @@ function CreateScreen({ onCancel, onCreated }: { onCancel: () => void; onCreated
         <div className="form-actions">
           <button type="button" className="secondary-button" onClick={onCancel}>Hủy bỏ</button>
           <button type="submit" className="primary-button" disabled={saving || !isSupabaseConfigured}>
-            {saving ? "Đang lưu..." : "Lưu câu hỏi"} <span>→</span>
+            {saving ? "Đang lưu..." : existing ? "Lưu thay đổi" : "Lưu câu hỏi"} <span>→</span>
           </button>
         </div>
       </form>
+    </section>
+  );
+}
+
+function ManageScreen({
+  questions,
+  onBack,
+  onChanged,
+}: {
+  questions: Question[];
+  onBack: () => void;
+  onChanged: () => Promise<void>;
+}) {
+  const [editing, setEditing] = useState<Question | null>(null);
+  const [deletingId, setDeletingId] = useState("");
+  const [message, setMessage] = useState("");
+
+  if (editing) {
+    return (
+      <CreateScreen
+        existing={editing}
+        onCancel={() => setEditing(null)}
+        onCreated={async () => {
+          await onChanged();
+          setEditing(null);
+        }}
+      />
+    );
+  }
+
+  async function remove(item: Question) {
+    if (!window.confirm(`Xóa câu hỏi “${item.question}”? Hành động này không thể hoàn tác.`)) return;
+    setDeletingId(item.id);
+    setMessage("");
+    try {
+      await deleteQuestion(item.id);
+      await onChanged();
+    } catch (err) {
+      setMessage(err instanceof Error ? err.message : "Không thể xóa câu hỏi.");
+    } finally {
+      setDeletingId("");
+    }
+  }
+
+  return (
+    <section className="page-shell manage-shell">
+      <div className="manage-heading">
+        <div>
+          <span className="step-label">KHO CÂU HỎI</span>
+          <h2>Sửa sai thật <em>dễ dàng.</em></h2>
+          <p>Chọn sửa để nhập lại hoặc xóa hẳn câu hỏi không còn dùng.</p>
+        </div>
+        <button className="secondary-button" onClick={onBack}>← Quay lại</button>
+      </div>
+      {message && <p className="form-message">{message}</p>}
+      <div className="question-list">
+        {questions.map((item, index) => (
+          <article className="question-row" key={item.id}>
+            <span className="row-number">{String(index + 1).padStart(2, "0")}</span>
+            <div className="row-copy">
+              <h3>{item.question}</h3>
+              <p>
+                Đáp án đúng: <strong>{letters[item.correct_answer]}. {item.answers[item.correct_answer]}</strong>
+              </p>
+            </div>
+            <div className="row-actions">
+              <button className="edit-button" onClick={() => setEditing(item)}>Sửa</button>
+              <button
+                className="delete-button"
+                onClick={() => remove(item)}
+                disabled={deletingId === item.id}
+              >
+                {deletingId === item.id ? "Đang xóa..." : "Xóa"}
+              </button>
+            </div>
+          </article>
+        ))}
+      </div>
     </section>
   );
 }

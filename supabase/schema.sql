@@ -25,8 +25,22 @@ on public.questions for insert
 to anon
 with check (true);
 
+drop policy if exists "Anyone can update questions" on public.questions;
+create policy "Anyone can update questions"
+on public.questions for update
+to anon
+using (true)
+with check (true);
+
+drop policy if exists "Anyone can delete questions" on public.questions;
+create policy "Anyone can delete questions"
+on public.questions for delete
+to anon
+using (true);
+
 create index if not exists questions_created_at_idx
 on public.questions (created_at desc);
 
 -- Gợi ý cho ứng dụng công khai thật:
--- thay policy INSERT ở trên bằng policy yêu cầu authenticated hoặc tài khoản admin.
+-- thay các policy INSERT/UPDATE/DELETE ở trên bằng policy yêu cầu authenticated
+-- hoặc tài khoản admin.
