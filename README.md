@@ -20,6 +20,19 @@ Nếu project Supabase đã được tạo từ phiên bản cũ, hãy chạy l�
 `supabase/schema.sql` để bổ sung policy cho chức năng sửa và xóa câu hỏi. Script có
 thể chạy lại an toàn vì dùng `if not exists` và thay thế các policy theo tên.
 
+## Import câu hỏi
+
+Trong **Quản lý câu hỏi**, chọn **Import file**. Ứng dụng hỗ trợ JSON, CSV, TSV và
+TXT tối đa 5 MB, kiểm tra dữ liệu trước khi lưu và tự bỏ qua câu hỏi trùng.
+
+- JSON dùng `question`, mảng `answers` gồm 4 phần tử và `correct_answer` từ 0–3.
+- CSV/TSV dùng các cột `question`, `answer_a`, `answer_b`, `answer_c`, `answer_d`,
+  `correct_answer`.
+- `correct_answer` chấp nhận `0–3` hoặc `A–D`.
+- `id` và `created_at` không cần nhập vì Supabase tự tạo.
+
+File mẫu nằm tại `examples/questions.json` và `examples/questions.csv`.
+
 ## Deploy lên Vercel
 
 1. Đẩy repository lên GitHub/GitLab/Bitbucket.

@@ -3,6 +3,7 @@
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import {
   addQuestion,
+  addQuestions,
   deleteQuestion,
   getQuestions,
   isSupabaseConfigured,
@@ -10,6 +11,7 @@ import {
   shuffled,
   updateQuestion,
 } from "@/lib/questions";
+import { ImportResult, parseQuestionFile } from "@/lib/import-questions";
 
 type Screen = "home" | "create" | "manage" | "quiz";
 type QuizQuestion = Question & { choices: { text: string; isCorrect: boolean }[] };
@@ -152,7 +154,7 @@ function HomeScreen({
         <button
           className="action-card manage-card"
           onClick={onManage}
-          disabled={loading || count === 0}
+          disabled={loading}
         >
           <span className="card-icon manage">✎</span>
           <span className="card-kicker">CHỈNH SỬA KHO</span>
@@ -282,6 +284,7 @@ function ManageScreen({
   const [editing, setEditing] = useState<Question | null>(null);
   const [deletingId, setDeletingId] = useState("");
   const [message, setMessage] = useState("");
+  const [showImport, setShowImport] = useState(false);
 
   if (editing) {
     return (
@@ -318,8 +321,22 @@ function ManageScreen({
           <h2>Sửa sai thật <em>dễ dàng.</em></h2>
           <p>Chọn sửa để nhập lại hoặc xóa hẳn câu hỏi không còn dùng.</p>
         </div>
-        <button className="secondary-button" onClick={onBack}>← Quay lại</button>
+        <div className="manage-heading-actions">
+          <button className="import-button" onClick={() => setShowImport((value) => !value)}>
+            {showImport ? "Đóng import" : "↑ Import file"}
+          </button>
+          <button className="secondary-button" onClick={onBack}>← Quay lại</button>
+        </div>
       </div>
+      {showImport && (
+        <ImportPanel
+          questions={questions}
+          onImported={async () => {
+            await onChanged();
+            setShowImport(false);
+          }}
+        />
+      )}
       {message && <p className="form-message">{message}</p>}
       <div className="question-list">
         {questions.map((item, index) => (
@@ -344,6 +361,127 @@ function ManageScreen({
           </article>
         ))}
       </div>
+    </section>
+  );
+}
+
+function ImportPanel({
+  questions,
+  onImported,
+}: {
+  questions: Question[];
+  onImported: () => Promise<void>;
+}) {
+  const [result, setResult] = useState<ImportResult | null>(null);
+  const [fileName, setFileName] = useState("");
+  const [message, setMessage] = useState("");
+  const [importing, setImporting] = useState(false);
+
+  async function readFile(file?: File) {
+    setResult(null);
+    setMessage("");
+    setFileName(file?.name ?? "");
+    if (!file) return;
+    if (file.size > 5 * 1024 * 1024) {
+      setMessage("File vượt quá giới hạn 5 MB.");
+      return;
+    }
+    try {
+      setResult(parseQuestionFile(file.name, await file.text(), questions));
+    } catch (err) {
+      setMessage(err instanceof Error ? err.message : "Không thể đọc file.");
+    }
+  }
+
+  async function confirmImport() {
+    if (!result?.valid.length) return;
+    setImporting(true);
+    setMessage("");
+    try {
+      await addQuestions(result.valid);
+      await onImported();
+    } catch (err) {
+      setMessage(err instanceof Error ? err.message : "Không thể import câu hỏi.");
+      setImporting(false);
+    }
+  }
+
+  return (
+    <section className="import-panel">
+      <div className="import-intro">
+        <div>
+          <h3>Import nhiều câu hỏi</h3>
+          <p>Hỗ trợ JSON, CSV, TSV hoặc TXT, tối đa 5 MB. Câu trùng sẽ tự động bỏ qua.</p>
+        </div>
+        <label className="file-button">
+          Chọn file
+          <input
+            type="file"
+            accept=".json,.csv,.tsv,.txt,application/json,text/csv,text/tab-separated-values"
+            onChange={(event) => readFile(event.target.files?.[0])}
+          />
+        </label>
+      </div>
+      <details className="format-help">
+        <summary>Xem định dạng file mẫu</summary>
+        <div className="format-grid">
+          <div>
+            <strong>JSON</strong>
+            <pre>{`[{
+  "question": "2 + 2 bằng?",
+  "answers": ["2", "3", "4", "5"],
+  "correct_answer": 2
+}]`}</pre>
+          </div>
+          <div>
+            <strong>CSV</strong>
+            <pre>{`question,answer_a,answer_b,answer_c,answer_d,correct_answer
+"2 + 2 bằng?","2","3","4","5",C`}</pre>
+          </div>
+        </div>
+      </details>
+      {message && <p className="form-message">{message}</p>}
+      {result && (
+        <div className="import-preview">
+          <div className="import-summary">
+            <strong>{fileName}</strong>
+            <span>{result.total} dòng</span>
+            <span className="valid-count">✓ {result.valid.length} hợp lệ</span>
+            <span className={result.errors.length ? "invalid-count" : ""}>
+              {result.errors.length} lỗi/trùng
+            </span>
+          </div>
+          {result.valid.length > 0 && (
+            <div className="preview-list">
+              {result.valid.slice(0, 5).map((item, index) => (
+                <div key={`${item.question}-${index}`}>
+                  <span>{index + 1}</span>
+                  <p>{item.question}</p>
+                  <small>Đúng: {letters[item.correct_answer]}. {item.answers[item.correct_answer]}</small>
+                </div>
+              ))}
+              {result.valid.length > 5 && <p className="more-preview">+ {result.valid.length - 5} câu khác</p>}
+            </div>
+          )}
+          {result.errors.length > 0 && (
+            <details className="error-details">
+              <summary>Xem {result.errors.length} dòng bị bỏ qua</summary>
+              <ul>
+                {result.errors.slice(0, 20).map((error) => (
+                  <li key={`${error.row}-${error.message}`}>Dòng {error.row}: {error.message}</li>
+                ))}
+              </ul>
+            </details>
+          )}
+          <button
+            className="primary-button import-confirm"
+            onClick={confirmImport}
+            disabled={!result.valid.length || importing}
+          >
+            {importing ? "Đang import..." : `Import ${result.valid.length} câu hỏi`} →
+          </button>
+        </div>
+      )}
     </section>
   );
 }

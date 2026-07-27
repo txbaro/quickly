@@ -1,0 +1,12 @@
+[
+  {
+    "question": "Hành tinh nào gần Mặt Trời nhất?",
+    "answers": ["Sao Kim", "Sao Thủy", "Trái Đất", "Sao Hỏa"],
+    "correct_answer": 1
+  },
+  {
+    "question": "Thủ đô của Việt Nam là thành phố nào?",
+    "answers": ["Hà Nội", "Huế", "Đà Nẵng", "TP. Hồ Chí Minh"],
+    "correct_answer": 0
+  }
+]

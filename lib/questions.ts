@@ -6,6 +6,8 @@ export type Question = {
   created_at: string;
 };
 
+export type QuestionInput = Pick<Question, "question" | "answers" | "correct_answer">;
+
 const url = process.env.NEXT_PUBLIC_SUPABASE_URL?.replace(/\/$/, "");
 const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
@@ -36,11 +38,7 @@ export async function getQuestions(): Promise<Question[]> {
   return response.json();
 }
 
-export async function addQuestion(input: {
-  question: string;
-  answers: string[];
-  correct_answer: number;
-}): Promise<void> {
+export async function addQuestion(input: QuestionInput): Promise<void> {
   if (!isSupabaseConfigured) throw new Error("Supabase chưa được cấu hình.");
   const response = await fetch(`${url}/rest/v1/questions`, {
     method: "POST",
@@ -50,9 +48,21 @@ export async function addQuestion(input: {
   if (!response.ok) throw new Error(await parseError(response));
 }
 
+export async function addQuestions(inputs: QuestionInput[]): Promise<void> {
+  if (!isSupabaseConfigured) throw new Error("Supabase chưa được cấu hình.");
+  for (let index = 0; index < inputs.length; index += 100) {
+    const response = await fetch(`${url}/rest/v1/questions`, {
+      method: "POST",
+      headers: { ...headers(), Prefer: "return=minimal" },
+      body: JSON.stringify(inputs.slice(index, index + 100)),
+    });
+    if (!response.ok) throw new Error(await parseError(response));
+  }
+}
+
 export async function updateQuestion(
   id: string,
-  input: { question: string; answers: string[]; correct_answer: number }
+  input: QuestionInput
 ): Promise<void> {
   if (!isSupabaseConfigured) throw new Error("Supabase chưa được cấu hình.");
   const response = await fetch(`${url}/rest/v1/questions?id=eq.${encodeURIComponent(id)}`, {
