@@ -355,6 +355,20 @@ textarea:focus, .answer-field:focus-within { border-color: var(--purple); box-sh
 .size-card small { min-height: 28px; color: var(--muted); font-size: 9px; line-height: 1.4; }
 .size-card:last-child { background: var(--lime); }
 .size-card:last-child span { color: var(--ink); }
+.custom-size {
+  max-width: 640px; margin: 0 auto 12px; padding: 14px 16px; border: 1px solid var(--line);
+  border-radius: 15px; background: var(--paper); display: grid;
+  grid-template-columns: 1fr 125px auto; align-items: center; gap: 12px; text-align: left;
+}
+.custom-size > div { display: grid; gap: 3px; }
+.custom-size strong { font-size: 13px; }
+.custom-size small { color: var(--muted); font-size: 10px; }
+.custom-size input {
+  width: 100%; height: 46px; border: 1px solid var(--line); border-radius: 10px;
+  background: #faf9f4; padding: 0 12px; outline: none;
+}
+.custom-size input:focus { border-color: var(--purple); box-shadow: 0 0 0 3px rgba(137,117,221,.12); }
+.custom-size-error { margin: 0 0 8px; color: var(--red); font-size: 11px; }
 .setup-back { margin-top: 8px; }
 
 @media (max-width: 700px) {
@@ -383,6 +397,7 @@ textarea:focus, .answer-field:focus-within { border-color: var(--purple); box-sh
   .quiz-setup-shell { padding: 55px 18px; }
   .size-grid { grid-template-columns: repeat(2, 1fr); }
   .size-card:last-child { grid-column: 1 / 3; }
+  .custom-size { grid-template-columns: 1fr; text-align: center; }
 }
 
 @media (prefers-reduced-motion: reduce) {

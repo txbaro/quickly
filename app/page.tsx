@@ -14,7 +14,7 @@ import {
 import { ImportResult, parseQuestionFile } from "@/lib/import-questions";
 
 type Screen = "home" | "create" | "manage" | "quiz-setup" | "quiz";
-type QuizSize = 50 | 100 | 200 | 300 | "all";
+type QuizSize = number | "all";
 type QuizQuestion = Question & { choices: { text: string; isCorrect: boolean }[] };
 
 const letters = ["A", "B", "C", "D"];
@@ -508,6 +508,11 @@ function QuizSetupScreen({
   onStart: (size: QuizSize) => void;
 }) {
   const sizes: QuizSize[] = [50, 100, 200, 300, "all"];
+  const [customSize, setCustomSize] = useState("");
+  const parsedCustomSize = Number(customSize);
+  const customIsValid =
+    Number.isInteger(parsedCustomSize) && parsedCustomSize >= 1 && parsedCustomSize <= count;
+
   return (
     <section className="quiz-setup-shell">
       <span className="step-label">THIẾT LẬP BÀI QUIZ</span>
@@ -530,6 +535,32 @@ function QuizSetupScreen({
           );
         })}
       </div>
+      <div className="custom-size">
+        <div>
+          <strong>Hoặc nhập số câu tùy chỉnh</strong>
+          <small>Nhập một số từ 1 đến {count}.</small>
+        </div>
+        <input
+          type="number"
+          inputMode="numeric"
+          min={1}
+          max={count}
+          value={customSize}
+          onChange={(event) => setCustomSize(event.target.value)}
+          placeholder="Ví dụ: 75"
+          aria-label="Số lượng câu hỏi tùy chỉnh"
+        />
+        <button
+          className="primary-button"
+          disabled={!customIsValid}
+          onClick={() => onStart(parsedCustomSize)}
+        >
+          Bắt đầu →
+        </button>
+      </div>
+      {customSize && !customIsValid && (
+        <p className="custom-size-error">Vui lòng nhập số nguyên từ 1 đến {count}.</p>
+      )}
       <button className="secondary-button setup-back" onClick={onBack}>← Quay lại</button>
     </section>
   );
