@@ -67,19 +67,31 @@ export async function updateQuestion(
   if (!isSupabaseConfigured) throw new Error("Supabase chưa được cấu hình.");
   const response = await fetch(`${url}/rest/v1/questions?id=eq.${encodeURIComponent(id)}`, {
     method: "PATCH",
-    headers: { ...headers(), Prefer: "return=minimal" },
+    headers: { ...headers(), Prefer: "return=representation" },
     body: JSON.stringify(input),
   });
   if (!response.ok) throw new Error(await parseError(response));
+  const updated = (await response.json()) as Pick<Question, "id">[];
+  if (!updated.length) {
+    throw new Error(
+      "Không có dữ liệu nào được cập nhật. Hãy chạy lại supabase/schema.sql để bật policy UPDATE."
+    );
+  }
 }
 
 export async function deleteQuestion(id: string): Promise<void> {
   if (!isSupabaseConfigured) throw new Error("Supabase chưa được cấu hình.");
   const response = await fetch(`${url}/rest/v1/questions?id=eq.${encodeURIComponent(id)}`, {
     method: "DELETE",
-    headers: { ...headers(), Prefer: "return=minimal" },
+    headers: { ...headers(), Prefer: "return=representation" },
   });
   if (!response.ok) throw new Error(await parseError(response));
+  const deleted = (await response.json()) as Pick<Question, "id">[];
+  if (!deleted.length) {
+    throw new Error(
+      "Không có dữ liệu nào được xóa. Hãy chạy lại supabase/schema.sql để bật policy DELETE."
+    );
+  }
 }
 
 export function shuffled<T>(items: T[]): T[] {
