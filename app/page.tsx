@@ -297,6 +297,16 @@ function ManageScreen({
   const [deletingId, setDeletingId] = useState("");
   const [message, setMessage] = useState("");
   const [showImport, setShowImport] = useState(false);
+  const sortedQuestions = useMemo(
+    () =>
+      [...questions].sort((first, second) =>
+        first.question.localeCompare(second.question, "vi", {
+          numeric: true,
+          sensitivity: "base",
+        })
+      ),
+    [questions]
+  );
 
   if (editing) {
     return (
@@ -351,7 +361,7 @@ function ManageScreen({
       )}
       {message && <p className="form-message">{message}</p>}
       <div className="question-list">
-        {questions.map((item, index) => (
+        {sortedQuestions.map((item, index) => (
           <article className="question-row" key={item.id}>
             <span className="row-number">{String(index + 1).padStart(2, "0")}</span>
             <div className="row-copy">
