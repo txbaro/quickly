@@ -15,9 +15,25 @@ import { ImportResult, parseQuestionFile } from "@/lib/import-questions";
 
 type Screen = "home" | "create" | "manage" | "quiz-setup" | "quiz";
 type QuizSize = number | "all";
+type QuizRange = { from: number; to: number } | null;
 type QuizQuestion = Question & { choices: { text: string; isCorrect: boolean }[] };
 
 const letters = ["A", "B", "C", "D"];
+
+function getQuestionOrder(question: Question): number {
+  const prefixed = question.question.match(/^(?:câu|question)\s*(\d+)/i);
+  const fallback = question.question.match(/\d+/);
+  return Number(prefixed?.[1] ?? fallback?.[0] ?? Number.POSITIVE_INFINITY);
+}
+
+function compareQuestions(first: Question, second: Question): number {
+  const orderDifference = getQuestionOrder(first) - getQuestionOrder(second);
+  if (Number.isFinite(orderDifference) && orderDifference !== 0) return orderDifference;
+  return first.question.localeCompare(second.question, "vi", {
+    numeric: true,
+    sensitivity: "base",
+  });
+}
 
 function Sparkle({ small = false }: { small?: boolean }) {
   return <span className={small ? "sparkle small" : "sparkle"}>✦</span>;
@@ -29,6 +45,7 @@ export default function Home() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [quizSize, setQuizSize] = useState<QuizSize>("all");
+  const [quizRange, setQuizRange] = useState<QuizRange>(null);
 
   const refresh = useCallback(async () => {
     setLoading(true);
@@ -95,16 +112,27 @@ export default function Home() {
       )}
       {screen === "quiz-setup" && (
         <QuizSetupScreen
-          count={questions.length}
+          questions={questions}
           onBack={() => setScreen("home")}
-          onStart={(size) => {
+          onStartRandom={(size) => {
             setQuizSize(size);
+            setQuizRange(null);
+            setScreen("quiz");
+          }}
+          onStartRange={(range) => {
+            setQuizSize("all");
+            setQuizRange(range);
             setScreen("quiz");
           }}
         />
       )}
       {screen === "quiz" && (
-        <QuizScreen questions={questions} size={quizSize} onExit={() => setScreen("home")} />
+        <QuizScreen
+          questions={questions}
+          size={quizSize}
+          range={quizRange}
+          onExit={() => setScreen("home")}
+        />
       )}
     </main>
   );
@@ -156,10 +184,10 @@ function HomeScreen({
           disabled={loading || count === 0}
         >
           <span className="card-icon play">▶</span>
-          <span className="card-kicker">THỬ THÁCH NGAY</span>
-          <strong>Làm bài ngẫu nhiên</strong>
+          <span className="card-kicker">TÙY CHỌN BÀI QUIZ</span>
+          <strong>Chọn câu để làm</strong>
           <span className="card-description">
-            {count ? `${count} câu hỏi đang chờ bạn chinh phục.` : "Hãy thêm câu hỏi đầu tiên trước nhé."}
+            {count ? "Làm ngẫu nhiên hoặc chọn một khoảng câu cụ thể." : "Hãy thêm câu hỏi đầu tiên trước nhé."}
           </span>
           <span className="card-arrow">→</span>
         </button>
@@ -298,13 +326,7 @@ function ManageScreen({
   const [message, setMessage] = useState("");
   const [showImport, setShowImport] = useState(false);
   const sortedQuestions = useMemo(
-    () =>
-      [...questions].sort((first, second) =>
-        first.question.localeCompare(second.question, "vi", {
-          numeric: true,
-          sensitivity: "base",
-        })
-      ),
+    () => [...questions].sort(compareQuestions),
     [questions]
   );
 
@@ -509,16 +531,27 @@ function ImportPanel({
 }
 
 function QuizSetupScreen({
-  count,
+  questions,
   onBack,
-  onStart,
+  onStartRandom,
+  onStartRange,
 }: {
-  count: number;
+  questions: Question[];
   onBack: () => void;
-  onStart: (size: QuizSize) => void;
+  onStartRandom: (size: QuizSize) => void;
+  onStartRange: (range: Exclude<QuizRange, null>) => void;
 }) {
+  const count = questions.length;
+  const numberedQuestions = questions.map(getQuestionOrder).filter(Number.isFinite);
+  const minimumQuestionNumber = numberedQuestions.length ? Math.min(...numberedQuestions) : 1;
+  const maximumQuestionNumber = numberedQuestions.length ? Math.max(...numberedQuestions) : count;
   const sizes: QuizSize[] = [50, 100, 200, 300, "all"];
+  const [mode, setMode] = useState<"random" | "range">("random");
   const [customSize, setCustomSize] = useState("");
+  const [rangeFrom, setRangeFrom] = useState(String(minimumQuestionNumber));
+  const [rangeTo, setRangeTo] = useState(
+    String(Math.min(minimumQuestionNumber + 49, maximumQuestionNumber))
+  );
   const parsedCustomSize = Number(customSize);
   const customIsValid =
     Number.isInteger(parsedCustomSize) && parsedCustomSize >= 1 && parsedCustomSize <= count;
@@ -526,53 +559,168 @@ function QuizSetupScreen({
   return (
     <section className="quiz-setup-shell">
       <span className="step-label">THIẾT LẬP BÀI QUIZ</span>
-      <h2>Bạn muốn làm <em>bao nhiêu câu?</em></h2>
+      <h2>Bạn muốn chọn câu <em>theo cách nào?</em></h2>
       <p className="setup-description">
-        Kho hiện có <strong>{count}</strong> câu. Hệ thống ưu tiên câu chưa xuất hiện
-        ở các lần làm trước và không lặp câu trong cùng một đề.
+        Kho hiện có <strong>{count}</strong> câu. Chọn ngẫu nhiên hoặc làm theo một khoảng cụ thể.
       </p>
-      <div className="size-grid">
-        {sizes.map((size) => {
-          const requested = size === "all" ? count : size;
-          const actual = Math.min(requested, count);
-          return (
-            <button key={size} className="size-card" onClick={() => onStart(size)}>
-              <span>{size === "all" ? "∞" : size}</span>
-              <strong>{size === "all" ? "Toàn bộ" : `${size} câu`}</strong>
-              {size !== "all" && actual < size && <small>Dùng {actual} câu hiện có</small>}
-              {size === "all" && <small>Làm hết kho câu hỏi</small>}
-            </button>
-          );
-        })}
+      <div className="quiz-mode-switch">
+        <button className={mode === "random" ? "active" : ""} onClick={() => setMode("random")}>
+          <span>⤨</span><strong>Ngẫu nhiên</strong><small>Xáo trộn và luân phiên câu hỏi</small>
+        </button>
+        <button className={mode === "range" ? "active" : ""} onClick={() => setMode("range")}>
+          <span>↔</span><strong>Theo khoảng</strong><small>Chọn từ câu nào đến câu nào</small>
+        </button>
       </div>
-      <div className="custom-size">
-        <div>
-          <strong>Hoặc nhập số câu tùy chỉnh</strong>
-          <small>Nhập một số từ 1 đến {count}.</small>
-        </div>
-        <input
-          type="number"
-          inputMode="numeric"
-          min={1}
-          max={count}
-          value={customSize}
-          onChange={(event) => setCustomSize(event.target.value)}
-          placeholder="Ví dụ: 75"
-          aria-label="Số lượng câu hỏi tùy chỉnh"
+
+      {mode === "random" ? (
+        <>
+          <div className="size-grid">
+            {sizes.map((size) => {
+              const requested = size === "all" ? count : size;
+              const actual = Math.min(requested, count);
+              return (
+                <button key={size} className="size-card" onClick={() => onStartRandom(size)}>
+                  <span>{size === "all" ? "∞" : size}</span>
+                  <strong>{size === "all" ? "Toàn bộ" : `${size} câu`}</strong>
+                  {size !== "all" && actual < size && <small>Dùng {actual} câu hiện có</small>}
+                  {size === "all" && <small>Làm hết kho câu hỏi</small>}
+                </button>
+              );
+            })}
+          </div>
+          <div className="custom-size">
+            <div>
+              <strong>Hoặc nhập số câu tùy chỉnh</strong>
+              <small>Nhập một số từ 1 đến {count}.</small>
+            </div>
+            <input
+              type="number"
+              inputMode="numeric"
+              min={1}
+              max={count}
+              value={customSize}
+              onChange={(event) => setCustomSize(event.target.value)}
+              placeholder="Ví dụ: 75"
+              aria-label="Số lượng câu hỏi tùy chỉnh"
+            />
+            <button
+              className="primary-button"
+              disabled={!customIsValid}
+              onClick={() => onStartRandom(parsedCustomSize)}
+            >
+              Bắt đầu →
+            </button>
+          </div>
+          {customSize && !customIsValid && (
+            <p className="custom-size-error">Vui lòng nhập số nguyên từ 1 đến {count}.</p>
+          )}
+          <p className="rotation-note">
+            Không lặp trong cùng một đề và ưu tiên câu chưa xuất hiện ở các lần trước.
+          </p>
+        </>
+      ) : (
+        <RangeSelector
+          questions={questions}
+          minimumQuestionNumber={minimumQuestionNumber}
+          maximumQuestionNumber={maximumQuestionNumber}
+          from={rangeFrom}
+          to={rangeTo}
+          onFromChange={setRangeFrom}
+          onToChange={setRangeTo}
+          onStart={onStartRange}
         />
+      )}
+      <button className="secondary-button setup-back" onClick={onBack}>← Quay lại</button>
+    </section>
+  );
+}
+
+function RangeSelector({
+  questions,
+  minimumQuestionNumber,
+  maximumQuestionNumber,
+  from,
+  to,
+  onFromChange,
+  onToChange,
+  onStart,
+}: {
+  questions: Question[];
+  minimumQuestionNumber: number;
+  maximumQuestionNumber: number;
+  from: string;
+  to: string;
+  onFromChange: (value: string) => void;
+  onToChange: (value: string) => void;
+  onStart: (range: { from: number; to: number }) => void;
+}) {
+  const parsedFrom = Number(from);
+  const parsedTo = Number(to);
+  const valid =
+    Number.isInteger(parsedFrom) &&
+    Number.isInteger(parsedTo) &&
+    parsedFrom >= minimumQuestionNumber &&
+    parsedTo >= parsedFrom &&
+    parsedTo <= maximumQuestionNumber;
+  const total = valid
+    ? questions.filter((question) => {
+        const order = getQuestionOrder(question);
+        return order >= parsedFrom && order <= parsedTo;
+      }).length
+    : 0;
+  const canStart = valid && total > 0;
+
+  return (
+    <div className="range-panel">
+      <div className="range-copy">
+        <span className="range-icon">↔</span>
+        <div>
+          <h3>Chọn khoảng câu hỏi</h3>
+          <p>Câu hỏi được lấy theo thứ tự tăng dần đang hiển thị trong kho.</p>
+        </div>
+      </div>
+      <div className="range-inputs">
+        <label>
+          <span>Từ câu</span>
+          <input
+            type="number"
+            inputMode="numeric"
+            min={minimumQuestionNumber}
+            max={maximumQuestionNumber}
+            value={from}
+            onChange={(event) => onFromChange(event.target.value)}
+          />
+        </label>
+        <span className="range-dash">→</span>
+        <label>
+          <span>Đến câu</span>
+          <input
+            type="number"
+            inputMode="numeric"
+            min={minimumQuestionNumber}
+            max={maximumQuestionNumber}
+            value={to}
+            onChange={(event) => onToChange(event.target.value)}
+          />
+        </label>
+      </div>
+      <div className="range-footer">
+        <p>
+          {valid
+            ? total
+              ? `Tìm thấy ${total} câu trong khoảng ${parsedFrom}–${parsedTo}.`
+              : "Không tìm thấy câu hỏi nào trong khoảng này."
+            : `Nhập khoảng hợp lệ trong ${minimumQuestionNumber}–${maximumQuestionNumber}.`}
+        </p>
         <button
           className="primary-button"
-          disabled={!customIsValid}
-          onClick={() => onStart(parsedCustomSize)}
+          disabled={!canStart}
+          onClick={() => onStart({ from: parsedFrom, to: parsedTo })}
         >
           Bắt đầu →
         </button>
       </div>
-      {customSize && !customIsValid && (
-        <p className="custom-size-error">Vui lòng nhập số nguyên từ 1 đến {count}.</p>
-      )}
-      <button className="secondary-button setup-back" onClick={onBack}>← Quay lại</button>
-    </section>
+    </div>
   );
 }
 
@@ -613,13 +761,23 @@ function selectFairQuestions(questions: Question[], size: QuizSize): Question[] 
 function QuizScreen({
   questions,
   size,
+  range,
   onExit,
 }: {
   questions: Question[];
   size: QuizSize;
+  range: QuizRange;
   onExit: () => void;
 }) {
-  const selectedQuestions = useMemo(() => selectFairQuestions(questions, size), [questions, size]);
+  const selectedQuestions = useMemo(() => {
+    if (!range) return selectFairQuestions(questions, size);
+    return [...questions]
+      .filter((question) => {
+        const order = getQuestionOrder(question);
+        return order >= range.from && order <= range.to;
+      })
+      .sort(compareQuestions);
+  }, [questions, range, size]);
   const quiz = useMemo<QuizQuestion[]>(
     () =>
       selectedQuestions.map((question) => ({

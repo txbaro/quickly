@@ -343,7 +343,20 @@ textarea:focus, .answer-field:focus-within { border-color: var(--purple); box-sh
 .quiz-setup-shell h2 em { font-family: Georgia, serif; font-weight: 400; color: var(--purple); }
 .setup-description { max-width: 660px; margin: 0 auto; color: var(--muted); line-height: 1.7; font-size: 14px; }
 .setup-description strong { color: var(--ink); }
-.size-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; margin: 44px 0 26px; }
+.quiz-mode-switch {
+  max-width: 620px; margin: 34px auto 28px; padding: 5px; border-radius: 17px;
+  background: #e9e7df; display: grid; grid-template-columns: 1fr 1fr; gap: 5px;
+}
+.quiz-mode-switch button {
+  min-height: 76px; border: 0; border-radius: 13px; background: transparent; cursor: pointer;
+  display: grid; grid-template-columns: 32px 1fr; grid-template-rows: auto auto;
+  align-items: center; text-align: left; padding: 12px 16px; color: var(--muted);
+}
+.quiz-mode-switch button.active { background: var(--paper); color: var(--ink); box-shadow: 0 5px 15px rgba(37,49,46,.08); }
+.quiz-mode-switch button > span { grid-row: 1 / 3; font-size: 22px; color: var(--purple); }
+.quiz-mode-switch button strong { font-size: 13px; }
+.quiz-mode-switch button small { font-size: 9px; }
+.size-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; margin: 0 0 26px; }
 .size-card {
   min-height: 170px; padding: 22px 12px; border: 1px solid var(--line); border-radius: 19px;
   background: var(--paper); cursor: pointer; display: flex; flex-direction: column;
@@ -369,6 +382,31 @@ textarea:focus, .answer-field:focus-within { border-color: var(--purple); box-sh
 }
 .custom-size input:focus { border-color: var(--purple); box-shadow: 0 0 0 3px rgba(137,117,221,.12); }
 .custom-size-error { margin: 0 0 8px; color: var(--red); font-size: 11px; }
+.rotation-note { color: var(--muted); font-size: 10px; margin: 14px 0 0; }
+.range-panel {
+  max-width: 680px; margin: 0 auto 24px; background: var(--paper); border: 1px solid var(--line);
+  border-radius: 21px; padding: 26px; text-align: left; box-shadow: 0 18px 45px rgba(37,49,46,.06);
+}
+.range-copy { display: flex; align-items: center; gap: 14px; }
+.range-icon {
+  width: 48px; height: 48px; flex: 0 0 auto; border-radius: 50%; display: grid;
+  place-items: center; background: var(--purple-soft); color: var(--purple); font-size: 23px;
+}
+.range-copy h3 { font: 700 20px var(--font-display); margin: 0 0 4px; }
+.range-copy p, .range-footer p { color: var(--muted); font-size: 11px; margin: 0; }
+.range-inputs { display: grid; grid-template-columns: 1fr auto 1fr; align-items: end; gap: 14px; margin: 25px 0; }
+.range-inputs label { display: grid; gap: 7px; }
+.range-inputs label span { font-size: 11px; font-weight: 700; }
+.range-inputs input {
+  width: 100%; height: 58px; border: 1px solid var(--line); border-radius: 12px;
+  background: #faf9f4; padding: 0 15px; outline: none; font-size: 20px; font-weight: 700;
+}
+.range-inputs input:focus { border-color: var(--purple); box-shadow: 0 0 0 3px rgba(137,117,221,.12); }
+.range-dash { padding-bottom: 17px; color: var(--purple); font-size: 21px; }
+.range-footer {
+  padding-top: 18px; border-top: 1px solid var(--line); display: flex;
+  align-items: center; justify-content: space-between; gap: 18px;
+}
 .setup-back { margin-top: 8px; }
 
 @media (max-width: 700px) {
@@ -395,9 +433,13 @@ textarea:focus, .answer-field:focus-within { border-color: var(--purple); box-sh
   .question-row { grid-template-columns: 36px 1fr; }
   .row-actions { grid-column: 1 / 3; justify-content: flex-end; }
   .quiz-setup-shell { padding: 55px 18px; }
+  .quiz-mode-switch { grid-template-columns: 1fr; }
   .size-grid { grid-template-columns: repeat(2, 1fr); }
   .size-card:last-child { grid-column: 1 / 3; }
   .custom-size { grid-template-columns: 1fr; text-align: center; }
+  .range-panel { padding: 20px 16px; }
+  .range-footer { align-items: stretch; flex-direction: column; text-align: center; }
+  .range-footer button { width: 100%; }
 }
 
 @media (prefers-reduced-motion: reduce) {
