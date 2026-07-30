@@ -811,7 +811,7 @@ function QuizScreen({
         setIndex((value) => value + 1);
         setSelected(null);
       }
-    }, isCorrect ? 500 : 1250);
+    }, isCorrect ? 750 : 1250);
     return () => window.clearTimeout(timer);
   }, [selected, index, quiz, finished]);
 
@@ -901,7 +901,7 @@ function QuizScreen({
             {selected === null
               ? "Chọn một đáp án để tiếp tục"
               : current.choices[selected].isCorrect
-                ? "Chính xác! Tự chuyển sau 0,5 giây..."
+                ? "Chính xác! Tự chuyển sau 0,75 giây..."
                 : "Chưa đúng — tự chuyển sau 1,25 giây..."}
           </p>
           <button className="primary-button" onClick={next} disabled={selected === null}>
