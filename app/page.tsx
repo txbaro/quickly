@@ -796,6 +796,19 @@ function QuizScreen({
   const [score, setScore] = useState(0);
   const [finished, setFinished] = useState(false);
 
+  useEffect(() => {
+    if (selected === null || finished || !quiz.length) return;
+    const timer = window.setTimeout(() => {
+      if (index === quiz.length - 1) {
+        setFinished(true);
+      } else {
+        setIndex((value) => value + 1);
+        setSelected(null);
+      }
+    }, 1500);
+    return () => window.clearTimeout(timer);
+  }, [selected, index, quiz.length, finished]);
+
   if (!quiz.length) {
     return (
       <section className="empty-state">
@@ -875,7 +888,13 @@ function QuizScreen({
           })}
         </div>
         <div className="quiz-footer">
-          <p>{selected === null ? "Chọn một đáp án để tiếp tục" : current.choices[selected].isCorrect ? "Chính xác! Tuyệt lắm." : "Chưa đúng — đáp án đúng đã được đánh dấu."}</p>
+          <p>
+            {selected === null
+              ? "Chọn một đáp án để tiếp tục"
+              : current.choices[selected].isCorrect
+                ? "Chính xác! Tự chuyển sau 1,5 giây..."
+                : "Chưa đúng — tự chuyển sau 1,5 giây..."}
+          </p>
           <button className="primary-button" onClick={next} disabled={selected === null}>
             {index === quiz.length - 1 ? "Xem kết quả" : "Câu tiếp theo"} →
           </button>
