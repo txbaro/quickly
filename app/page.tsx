@@ -803,6 +803,7 @@ function QuizScreen({
 
   useEffect(() => {
     if (selected === null || finished || !quiz.length) return;
+    const isCorrect = quiz[index]?.choices[selected]?.isCorrect ?? false;
     const timer = window.setTimeout(() => {
       if (index === quiz.length - 1) {
         setFinished(true);
@@ -810,9 +811,9 @@ function QuizScreen({
         setIndex((value) => value + 1);
         setSelected(null);
       }
-    }, 1250);
+    }, isCorrect ? 500 : 1250);
     return () => window.clearTimeout(timer);
-  }, [selected, index, quiz.length, finished]);
+  }, [selected, index, quiz, finished]);
 
   if (!quiz.length) {
     return (
@@ -844,12 +845,9 @@ function QuizScreen({
   function choose(choiceIndex: number) {
     if (selected !== null || answerLocked.current) return;
     answerLocked.current = true;
+    setSelected(choiceIndex);
     if (current.choices[choiceIndex].isCorrect) {
       setScore((value) => value + 1);
-      if (index === quiz.length - 1) setFinished(true);
-      else setIndex((value) => value + 1);
-    } else {
-      setSelected(choiceIndex);
     }
   }
   function next() {
@@ -903,7 +901,7 @@ function QuizScreen({
             {selected === null
               ? "Chọn một đáp án để tiếp tục"
               : current.choices[selected].isCorrect
-                ? "Chính xác!"
+                ? "Chính xác! Tự chuyển sau 0,5 giây..."
                 : "Chưa đúng — tự chuyển sau 1,25 giây..."}
           </p>
           <button className="primary-button" onClick={next} disabled={selected === null}>
