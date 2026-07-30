@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
+import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   addQuestion,
   addQuestions,
@@ -795,6 +795,11 @@ function QuizScreen({
   const [selected, setSelected] = useState<number | null>(null);
   const [score, setScore] = useState(0);
   const [finished, setFinished] = useState(false);
+  const answerLocked = useRef(false);
+
+  useEffect(() => {
+    answerLocked.current = false;
+  }, [index]);
 
   useEffect(() => {
     if (selected === null || finished || !quiz.length) return;
@@ -805,7 +810,7 @@ function QuizScreen({
         setIndex((value) => value + 1);
         setSelected(null);
       }
-    }, 1500);
+    }, 1250);
     return () => window.clearTimeout(timer);
   }, [selected, index, quiz.length, finished]);
 
@@ -837,9 +842,15 @@ function QuizScreen({
 
   const current = quiz[index];
   function choose(choiceIndex: number) {
-    if (selected !== null) return;
-    setSelected(choiceIndex);
-    if (current.choices[choiceIndex].isCorrect) setScore((value) => value + 1);
+    if (selected !== null || answerLocked.current) return;
+    answerLocked.current = true;
+    if (current.choices[choiceIndex].isCorrect) {
+      setScore((value) => value + 1);
+      if (index === quiz.length - 1) setFinished(true);
+      else setIndex((value) => value + 1);
+    } else {
+      setSelected(choiceIndex);
+    }
   }
   function next() {
     if (index === quiz.length - 1) setFinished(true);
@@ -892,8 +903,8 @@ function QuizScreen({
             {selected === null
               ? "Chọn một đáp án để tiếp tục"
               : current.choices[selected].isCorrect
-                ? "Chính xác! Tự chuyển sau 1,5 giây..."
-                : "Chưa đúng — tự chuyển sau 1,5 giây..."}
+                ? "Chính xác!"
+                : "Chưa đúng — tự chuyển sau 1,25 giây..."}
           </p>
           <button className="primary-button" onClick={next} disabled={selected === null}>
             {index === quiz.length - 1 ? "Xem kết quả" : "Câu tiếp theo"} →
